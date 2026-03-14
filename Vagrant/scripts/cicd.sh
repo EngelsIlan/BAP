@@ -5,6 +5,9 @@
 # update & upgrade
 apt update && apt upgrade -y
 
+# Requirements:
+apt install zip unzip -y
+
 # install Docker (Debian/Ubuntu)
 apt install -y docker.io curl
 echo "enabling Docker service"
@@ -30,3 +33,17 @@ if ! docker ps --format '{{.Names}}' | grep -q '^jenkins$'; then
 else
     echo "Jenkins container already running"
 fi
+
+# Creeer directory 
+mkdir poc
+cd poc
+
+# Curl opensource project
+curl https://start.spring.io/starter.zip \
+  -d dependencies=web,actuator \
+  -d javaVersion=21 \
+  -d type=maven-project \
+  -o demo.zip
+
+# Unzip project
+unzip demo.zip
