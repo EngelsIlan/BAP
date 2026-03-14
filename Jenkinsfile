@@ -28,7 +28,8 @@ pipeline {
             steps {
                 sh '''
                     # jq installeren voor JSON parsing
-                    apt install -y jq -q
+                    apt-get update -q
+                    apt-get install -y jq
                     
                     # Syft installeren
                     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
