@@ -8,7 +8,10 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                sh 'ls -a'
                 sh 'cp -r /home/poc-devsecops/. .'
+                sh 'ls -a'
+
             }
         }
 
