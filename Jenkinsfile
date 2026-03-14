@@ -17,13 +17,19 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                    mvn clean package -DskipTests -q
+                    echo "BUILD SUCCESS"
+                '''
             }
         }
 
         stage('Generate SBOM') {
             steps {
                 sh '''
+                    # jq installeren voor JSON parsing
+                    apt install -y jq -q
+                    
                     # Syft installeren
                     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
 
