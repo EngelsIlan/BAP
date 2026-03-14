@@ -8,8 +8,8 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                sh 'ls -a'
-                sh 'cp -r /home/poc-devsecops/. .'
+                git url: 'https://github.com/spring-projects/spring-petclinic.git',
+                    branch: 'main'
                 sh 'ls -a'
 
             }
