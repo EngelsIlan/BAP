@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                sh 'cp -r /home/vagrant/poc-devsecops/. .'
             }
         }
 
