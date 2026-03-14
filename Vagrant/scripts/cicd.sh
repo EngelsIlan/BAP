@@ -1,7 +1,8 @@
 #! /bin/bash
 # Bachelorproef: CRA-compliance door CI/CD-pipelines
 # CICD Server adhv. Jenkins
-
+# Jenkins password:
+# 6bfdc7175dc04dd88368edc03277a0c8
 # update & upgrade
 apt update && apt upgrade -y
 
@@ -25,11 +26,12 @@ docker pull jenkins/jenkins:lts
 
 # run Jenkins in a container if not already running
 if ! docker ps --format '{{.Names}}' | grep -q '^jenkins$'; then
-    docker run -d --name jenkins \
-        -p 8080:8080 -p 50000:50000 \
-        -v /var/jenkins_home:/var/jenkins_home \
-        --restart=unless-stopped \
-        jenkins/jenkins:lts
+    docker run -p 8080:8080 -u root \
+        -v jenkins-data:/var/jenkins_home \
+        -v $(which docker):/usr/bin/docker \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$HOME":/home \
+        --name jenkins_server jenkins/jenkins:lts
 else
     echo "Jenkins container already running"
 fi
