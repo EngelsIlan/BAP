@@ -86,6 +86,7 @@ pipeline {
                             curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
                             unzip -q dependency-check.zip
 
+                            # Run the scan, output in HTML and JSON, fail on CVSS >= 7.0 but don't fail the build so we can publish the report
                             ./dependency-check/bin/dependency-check.sh \
                                 --project "spring-petclinic" \
                                 --scan ./target/spring-petclinic-4.0.0-SNAPSHOT.jar \
