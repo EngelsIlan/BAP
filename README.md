@@ -5,10 +5,10 @@
 ```tree
 - BAP/
   - .git/
+  - .gitignore
   - Jenkinsfile
   - README.md
   - Vagrant/
-    - .gitignore
     - .vagrant/
     - scripts/
       - cicd.sh
