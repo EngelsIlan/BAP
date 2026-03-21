@@ -94,8 +94,9 @@ pipeline {
                             --format HTML \
                             --format JSON \
                             --out ./dependency-check-report \
+                            --noupdate \
                             --failOnCVSS 7
-                            
+
 
                         echo "DEPENDENCY-CHECK SCAN COMPLETE"
                     '''
