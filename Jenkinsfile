@@ -98,6 +98,7 @@ pipeline {
                     echo "DEPENDENCY-CHECK SCAN COMPLETE"
                 '''
             }
+        }
 
         stage('Publish Report') {
             steps {
