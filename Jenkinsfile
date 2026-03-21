@@ -78,6 +78,7 @@ pipeline {
         // Deel 2: Dependency-check scan, HTML rapport genereren & fail bij HIGH/CRITICAL (>=7.0 CVSS)
         stage('Dependency Check scan') {
             steps {
+                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
                 sh '''
                     echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
 
@@ -93,6 +94,7 @@ pipeline {
                         --format HTML \
                         --format JSON \
                         --out ./dependency-check-report \
+                        --nvdApiKey $NVD_API_KEY \
                         --failOnCVSS 7
 
                     echo "DEPENDENCY-CHECK SCAN COMPLETE"
