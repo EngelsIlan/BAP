@@ -83,7 +83,7 @@ pipeline {
                         echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
 
                         # Download Dependency-Check CLI
-                        curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.3/dependency-check-10.0.3-release.zip -o dependency-check.zip
+                        curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
                         unzip -q dependency-check.zip
 
 
