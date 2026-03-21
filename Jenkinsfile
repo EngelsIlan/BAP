@@ -79,25 +79,23 @@ pipeline {
         stage('Dependency Check scan') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                    sh '''
-                        echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        sh '''
+                            echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                            # Download Dependency-Check CLI
+                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                            unzip -q dependency-check.zip
 
-                        # Download Dependency-Check CLI
-                        curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
-                        unzip -q dependency-check.zip
-
-
-                        # Scan de target/ directory waar de jar staat
-                        ./dependency-check/bin/dependency-check.sh \
-                            --project "spring-petclinic" \
-                            --scan ./target/*.jar \
-                            --format HTML \
-                            --format JSON \
-                            --out ./dependency-check-report \
-                            --failOnCVSS 7
-
-                        echo "DEPENDENCY-CHECK SCAN COMPLETE"
-                    '''
+                            ./dependency-check/bin/dependency-check.sh \
+                                --project "spring-petclinic" \
+                                --scan ./target/spring-petclinic-4.0.0-SNAPSHOT.jar \
+                                --format HTML \
+                                --format JSON \
+                                --out ./dependency-check-report \
+                                --disableOssIndex \
+                                --failOnCVSS 7
+                        '''
+                    }
                 }
             }
         }
