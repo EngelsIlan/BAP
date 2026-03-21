@@ -79,26 +79,27 @@ pipeline {
         stage('Dependency Check scan') {
             steps {
                 withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                sh '''
-                    echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                    sh '''
+                        echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
 
-                    # Download Dependency-Check CLI
-                    curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.3/dependency-check-10.0.3-release.zip -o dependency-check.zip
-                    unzip -q dependency-check.zip
+                        # Download Dependency-Check CLI
+                        curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.3/dependency-check-10.0.3-release.zip -o dependency-check.zip
+                        unzip -q dependency-check.zip
 
 
-                    # Scan de target/ directory waar de jar staat
-                    ./dependency-check/bin/dependency-check.sh \
-                        --project "spring-petclinic" \
-                        --scan ./target/*.jar \
-                        --format HTML \
-                        --format JSON \
-                        --out ./dependency-check-report \
-                        --nvdApiKey $NVD_API_KEY \
-                        --failOnCVSS 7
+                        # Scan de target/ directory waar de jar staat
+                        ./dependency-check/bin/dependency-check.sh \
+                            --project "spring-petclinic" \
+                            --scan ./target/*.jar \
+                            --format HTML \
+                            --format JSON \
+                            --out ./dependency-check-report \
+                            --nvdApiKey $NVD_API_KEY \
+                            --failOnCVSS 7
 
-                    echo "DEPENDENCY-CHECK SCAN COMPLETE"
-                '''
+                        echo "DEPENDENCY-CHECK SCAN COMPLETE"
+                    '''
+                }
             }
         }
 
