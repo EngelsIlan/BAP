@@ -95,6 +95,7 @@ pipeline {
                             --format JSON \
                             --out ./dependency-check-report \
                             --nvdApiKey $NVD_API_KEY \
+                            --nvdApiDelay 6000 \
                             --failOnCVSS 7
 
                         echo "DEPENDENCY-CHECK SCAN COMPLETE"
