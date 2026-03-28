@@ -33,3 +33,5 @@ URL: http://172.17.0.1:8080/sonarqube-webhook/
 ```
 
 Anders blijft SonarQube runnen zonder einde (geen return URL om resultaat naartoe te sturen)
+
+SonarQube toont aan dat "API_KEY" of "password" gewoon zomaar in je code staat.
