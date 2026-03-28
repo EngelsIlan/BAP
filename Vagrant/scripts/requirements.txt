@@ -1,0 +1,13 @@
+# Opzettelijk kwetsbare versies voor Dependency-Check demo
+
+# CVE-2019-20907 - ReDoS kwetsbaarheid
+requests==2.6.0
+
+# CVE-2022-40897 - Path traversal
+setuptools==39.0.1
+
+# CVE-2019-11324 - Certificate verification bypass
+urllib3==1.24.1
+
+# Normale dependency voor de app zelf
+flask==2.0.1
