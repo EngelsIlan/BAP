@@ -46,12 +46,13 @@ pipeline {
 
                             ./dependency-check/bin/dependency-check.sh \
                                 --project "vulnerable-python-app" \
-                                --scan ./vulnerable-app/requirements.txt \
+                                --scan ./vulnerable-app \
                                 --format HTML \
                                 --format JSON \
                                 --out ./dependency-check-report \
                                 --nvdApiKey $NVD_API_KEY \
                                 --disableOssIndex \
+                                --enableExperimental \
                                 --failOnCVSS 7
                         '''
                     }
