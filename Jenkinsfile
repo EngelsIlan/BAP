@@ -102,20 +102,6 @@ pipeline {
             }
         }
 
-        stage('Publish Report') {
-            steps {
-                publishHTML(target: [
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'dependency-check-report',
-                    reportFiles: 'dependency-check-report.html',
-                    reportName: 'OWASP Dependency-Check Report'
-                ])
-                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
-            }
-        }
-
         // Deel 3: SonarQube scan, Quality Gate check
         stage('SonarQube Scan') {
             steps {
@@ -136,6 +122,21 @@ pipeline {
                 timeout(time: 15, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
+            }
+        }
+
+        // Deel 2 publish report
+        stage('Publish Report') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'dependency-check-report',
+                    reportFiles: 'dependency-check-report.html',
+                    reportName: 'OWASP Dependency-Check Report'
+                ])
+                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
             }
         }
     }
