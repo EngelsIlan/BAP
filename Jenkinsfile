@@ -94,6 +94,7 @@ pipeline {
                                 --format JSON \
                                 --out ./dependency-check-report \
                                 --disableOssIndex \
+                                --nvdApiKey $NVD_API_KEY \
                                 --failOnCVSS 7
                         '''
                     }
@@ -112,6 +113,29 @@ pipeline {
                     reportName: 'OWASP Dependency-Check Report'
                 ])
                 archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
+            }
+        }
+
+        // Deel 3: SonarQube scan, Quality Gate check
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=spring-petclinic \
+                            -Dsonar.projectName="Spring Petclinic" \
+                            -Dsonar.java.binaries=target/classes \
+                            -q
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
     }
