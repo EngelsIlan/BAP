@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    apt-get update -q
+                    apt-get install -y python3 python3-pip -q
+                    pip3 install -r vulnerable-app/requirements.txt \
+                        --break-system-packages -q || true
+                '''
+            }
+        }
+
+        stage('Generate SBOM') {
+            steps {
+                sh '''
+                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+                    ./syft scan dir:vulnerable-app -o cyclonedx-json > sbom-python.cdx.json
+
+                    echo "=== SBOM Preview ==="
+                    cat sbom-python.cdx.json | jq '.components | length'
+                    cat sbom-python.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                '''
+            }
+        }
+
+        stage('Dependency-Check Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        sh '''
+                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                            unzip -q dependency-check.zip
+
+                            ./dependency-check/bin/dependency-check.sh \
+                                --project "vulnerable-python-app" \
+                                --scan ./vulnerable-app/requirements.txt \
+                                --format HTML \
+                                --format JSON \
+                                --out ./dependency-check-report \
+                                --nvdApiKey $NVD_API_KEY \
+                                --disableOssIndex \
+                                --failOnCVSS 7
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        apt-get install -y unzip -q
+
+                        curl -L https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+                        unzip -q sonar-scanner.zip
+                        
+                        ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+                            -Dsonar.projectKey=vulnerable-python-app \
+                            -Dsonar.projectName="Vulnerable Python App" \
+                            -Dsonar.sources=vulnerable-app \
+                            -Dsonar.language=py
+                    '''
+                }
+            }
+        }
+
+        stage('Publish Reports') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'dependency-check-report',
+                    reportFiles: 'dependency-check-report.html',
+                    reportName: 'OWASP Dependency-Check Report'
+                ])
+                archiveArtifacts artifacts: 'sbom-python.cdx.json,dependency-check-report/**', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
