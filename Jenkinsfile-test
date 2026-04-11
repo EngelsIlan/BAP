@@ -78,10 +78,11 @@ pipeline {
             steps {
                 sh '''
                     git clone https://github.com/EngelsIlan/BAP.git
-                    cd BAP
+                    pwd
+                    ls -a
 
                     apt-get install -y python3 -q
-                    python3 validate_sbom.py sbom.cdx.json
+                    python3 BAP/validate_sbom.py sbom.cdx.json
                     
                     cd
                 '''
@@ -107,6 +108,14 @@ pipeline {
                     sbom.cdx.json,
                     compliance-report/**,
                 ''', fingerprint: true
+            }
+        }
+        stage('Test failure handling') {
+            steps {
+                sh '''
+                    echo "This stage is designed to fail to test failure handling."
+                    exit 1
+                '''
             }
         }
     }
