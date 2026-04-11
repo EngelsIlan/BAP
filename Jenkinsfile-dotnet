@@ -39,7 +39,7 @@ pipeline {
                 sh '''
                     export PATH=$PATH:/usr/local/dotnet
                     cd vulnerable-app/dotnet
-                    dotnet clean -q
+                    rm -rf obj bin
                     dotnet build --configuration Release --no-incremental -q
                     echo "BUILD SUCCESS"
                 '''
