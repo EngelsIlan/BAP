@@ -77,7 +77,7 @@ pipeline {
         stage('SBOM Validatie (BSI TR-03183-2)') {
             steps {
                 sh '''
-                    git clone https://github.com/EngelsIlan/BAP
+                    git clone https://github.com/EngelsIlan/BAP.git
                     cd BAP
 
                     apt-get install -y python3 -q
