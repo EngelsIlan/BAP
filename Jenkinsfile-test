@@ -118,36 +118,36 @@ pipeline {
                 from email.mime.text import MIMEText
                 from email.mime.multipart import MIMEMultipart
                 import os
-    
+
                 smtp_server = "smtp.gmail.com"
                 port = 587
                 username = "$GMAIL_USER"
                 password = "$GMAIL_PASSWORD"
-    
+
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = "CRA Pipeline FAILED: ${JOB_NAME} - Build #${BUILD_NUMBER}"
                 msg["From"] = username
                 msg["To"] = username
-    
+
                 body = """
                 CRA Compliance Pipeline - FAILURE RAPPORT
-    
+
                 Job:          ${JOB_NAME}
                 Build:        #${BUILD_NUMBER}
                 Status:       FAILED
                 Build URL:    ${BUILD_URL}
-    
+
                 Bekijk het volledige rapport via:
                 ${BUILD_URL}artifact/
-    
+
                 Een of meerdere security checks zijn gefaald:
                 - HIGH/CRITICAL CVE gevonden (CVSS >= 7.0)
                 - SonarQube Quality Gate gefaald
                 - BSI TR-03183-2 SBOM validatie gefaald
                 """
-    
+
                 msg.attach(MIMEText(body, "plain"))
-    
+
                 try:
                     server = smtplib.SMTP(smtp_server, port)
                     server.ehlo()
@@ -161,12 +161,10 @@ pipeline {
                     print(f"Mail fout: {e}")
                 EOF
             '''
+            }
         }
-    }
-    always {
-        cleanWs()
-    }
-}
+        always {
+            cleanWs()
         }
     }
 }
