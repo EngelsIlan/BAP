@@ -127,6 +127,10 @@ pipeline {
             string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
         ]) {
             sh '''
+                pwd
+                ls
+                git clone https://github.com/EngelsIlan/BAP.git
+                ls BAP
                 cd BAP
                 python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "${JOB_NAME}" "${BUILD_NUMBER}" "${BUILD_URL}"
 
