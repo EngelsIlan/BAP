@@ -17,7 +17,7 @@ pipeline {
                 sh '''
                     apt-get update -q
                     apt-get install -y python3 python3-pip -q
-                    pip3 install -r vulnerable-app/requirements.txt \
+                    pip3 install -r vulnerable-app/python/requirements.txt \
                         --break-system-packages -q || true
                 '''
             }
@@ -27,7 +27,7 @@ pipeline {
             steps {
                 sh '''
                     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
-                    ./syft scan dir:vulnerable-app -o cyclonedx-json > sbom-python.cdx.json
+                    ./syft scan dir:vulnerable-app/python -o cyclonedx-json > sbom-python.cdx.json
 
                     echo "=== SBOM Preview ==="
                     cat sbom-python.cdx.json | jq '.components | length'
@@ -46,7 +46,7 @@ pipeline {
 
                             ./dependency-check/bin/dependency-check.sh \
                                 --project "vulnerable-python-app" \
-                                --scan ./vulnerable-app \
+                                --scan ./vulnerable-app/python \
                                 --format HTML \
                                 --format JSON \
                                 --out ./dependency-check-report \
@@ -72,7 +72,7 @@ pipeline {
                         ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
                             -Dsonar.projectKey=vulnerable-python-app \
                             -Dsonar.projectName="Vulnerable Python App" \
-                            -Dsonar.sources=vulnerable-app \
+                            -Dsonar.sources=vulnerable-app/python \
                             -Dsonar.language=py
                     '''
                 }
