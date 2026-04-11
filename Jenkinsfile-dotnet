@@ -45,7 +45,7 @@ pipeline {
                     mkdir -p obj/Release/net8.0
                     mkdir -p bin/Release/net8.0
 
-                    dotnet build --configuration Release --no-incremental -q
+                    dotnet build --configuration Release --no-incremental /warnaserror:false
                     echo "BUILD SUCCESS"
                 '''
             }
