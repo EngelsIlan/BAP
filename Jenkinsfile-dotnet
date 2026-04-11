@@ -38,8 +38,13 @@ pipeline {
             steps {
                 sh '''
                     export PATH=$PATH:/usr/local/dotnet
+                    
+                    chmod -R 777 vulnerable-app/dotnet
                     cd vulnerable-app/dotnet
                     rm -rf obj bin
+                    mkdir -p obj/Release/net8.0
+                    mkdir -p bin/Release/net8.0
+
                     dotnet build --configuration Release --no-incremental -q
                     echo "BUILD SUCCESS"
                 '''
