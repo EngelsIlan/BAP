@@ -77,8 +77,13 @@ pipeline {
         stage('SBOM Validatie (BSI TR-03183-2)') {
             steps {
                 sh '''
+                    git clone https://github.com/EngelsIlan/BAP
+                    cd BAP
+
                     apt-get install -y python3 -q
                     python3 validate_sbom.py sbom.cdx.json
+                    
+                    cd
                 '''
             }
         }
@@ -113,53 +118,9 @@ pipeline {
             string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
         ]) {
             sh '''
-                python3 << EOF
-                import smtplib
-                from email.mime.text import MIMEText
-                from email.mime.multipart import MIMEMultipart
-                import os
+                cd BAP
+                python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "${JOB_NAME}" "${BUILD_NUMBER}" "${BUILD_URL}"
 
-                smtp_server = "smtp.gmail.com"
-                port = 587
-                username = "$GMAIL_USER"
-                password = "$GMAIL_PASSWORD"
-
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = "CRA Pipeline FAILED: ${JOB_NAME} - Build #${BUILD_NUMBER}"
-                msg["From"] = username
-                msg["To"] = username
-
-                body = """
-                CRA Compliance Pipeline - FAILURE RAPPORT
-
-                Job:          ${JOB_NAME}
-                Build:        #${BUILD_NUMBER}
-                Status:       FAILED
-                Build URL:    ${BUILD_URL}
-
-                Bekijk het volledige rapport via:
-                ${BUILD_URL}artifact/
-
-                Een of meerdere security checks zijn gefaald:
-                - HIGH/CRITICAL CVE gevonden (CVSS >= 7.0)
-                - SonarQube Quality Gate gefaald
-                - BSI TR-03183-2 SBOM validatie gefaald
-                """
-
-                msg.attach(MIMEText(body, "plain"))
-
-                try:
-                    server = smtplib.SMTP(smtp_server, port)
-                    server.ehlo()
-                    server.starttls()
-                    server.ehlo()
-                    server.login(username, password)
-                    server.sendmail(username, username, msg.as_string())
-                    print("Mail verstuurd!")
-                    server.quit()
-                except Exception as e:
-                    print(f"Mail fout: {e}")
-                EOF
             '''
             }
         }
