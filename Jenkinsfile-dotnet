@@ -1,0 +1,129 @@
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    # Installeer .NET SDK
+                    if ! command -v dotnet &> /dev/null; then
+                        apt-get update -q
+                        apt-get install -y wget -q
+                        wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+                        chmod +x dotnet-install.sh
+                        ./dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet
+                    fi
+                    export PATH=$PATH:/usr/local/dotnet
+                    dotnet --version
+
+                    # Restore NuGet packages
+                    cd vulnerable-app/dotnet
+                    dotnet restore
+                '''
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh '''
+                    export PATH=$PATH:/usr/local/dotnet
+                    cd vulnerable-app/dotnet
+                    dotnet build --configuration Release -q
+                    echo "BUILD SUCCESS"
+                '''
+            }
+        }
+
+        stage('Generate SBOM') {
+            steps {
+                sh '''
+                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+                    ./syft scan dir:vulnerable-app/dotnet -o cyclonedx-json > sbom-dotnet.cdx.json
+
+                    echo "=== SBOM Preview ==="
+                    cat sbom-dotnet.cdx.json | jq '.components | length'
+                    cat sbom-dotnet.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                '''
+            }
+        }
+
+        stage('Dependency-Check Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        sh '''
+                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                            unzip -q dependency-check.zip
+
+                            ./dependency-check/bin/dependency-check.sh \
+                                --project "vulnerable-dotnet-app" \
+                                --scan ./vulnerable-app/dotnet \
+                                --format HTML \
+                                --format JSON \
+                                --out ./dependency-check-report \
+                                --nvdApiKey $NVD_API_KEY \
+                                --disableOssIndex \
+                                --failOnCVSS 7
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        export PATH=$PATH:/usr/local/dotnet:/root/.dotnet/tools
+
+                        # Installeer dotnet-sonarscanner indien nodig
+                        dotnet tool install --global dotnet-sonarscanner 2>/dev/null || true
+
+                        cd vulnerable-app/dotnet
+
+                        dotnet sonarscanner begin \
+                            /k:"vulnerable-dotnet-app" \
+                            /n:"Vulnerable .NET App" \
+                            /d:sonar.host.url="${SONAR_HOST_URL}" \
+                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
+
+                        dotnet build --configuration Release -q
+
+                        dotnet sonarscanner end \
+                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
+                    '''
+                }
+            }
+        }
+
+        stage('Publish Reports') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'dependency-check-report',
+                    reportFiles: 'dependency-check-report.html',
+                    reportName: 'OWASP Dependency-Check Report'
+                ])
+                archiveArtifacts artifacts: 'sbom-dotnet.cdx.json,dependency-check-report/**', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>VulnerableApp</AssemblyName>
+    <RootNamespace>VulnerableApp</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Opzettelijk kwetsbare NuGet packages voor Dependency-Check demo -->
+  <ItemGroup>
+    <!-- CVE-2023-29007 - Newtonsoft.Json deserialization -->
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+
+    <!-- CVE-2021-26701 - System.Text.Encodings.Web ReDoS -->
+    <PackageReference Include="System.Text.Encodings.Web" Version="5.0.0" />
+
+    <!-- CVE-2022-34716 - System.Security.Cryptography.Xml -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="5.0.0" />
+
+    <!-- SQLite voor de SQL injection demo -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.115" />
+  </ItemGroup>
+
+</Project>

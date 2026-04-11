@@ -1,0 +1,114 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven' 
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/spring-projects/spring-petclinic.git',
+                    branch: 'main'
+                sh 'ls -a'
+
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                sh '''
+                    echo "STARTING MAVEN BUILD"
+                    mvn clean package -DskipTests -q
+                    echo "BUILD SUCCESS"
+                '''
+            }
+        }
+
+        // Deel 1: SBOM genereren met Syft, validatie & archiveren
+        stage('Generate SBOM') {
+            steps {
+                sh '''
+                    echo "GENERATING SBOM WITH SYFT"
+
+                    # jq installeren voor JSON parsing
+                    apt-get update -q
+                    apt-get install -y jq
+                    
+                    # Syft installeren
+                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+
+                    # SBOM genereren vanuit de volledige workspace (pom.xml + target/)
+                    ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
+
+                    # SBOM preview
+                    echo "=== SBOM Preview ==="
+                    cat sbom.cdx.json | jq '.components | length'
+                    cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                
+                    echo "SBOM GENERATION COMPLETE"
+                '''
+            }
+        }
+
+        stage('Validate & Archive') {
+            steps {
+                sh '''
+                    echo "VALIDATING SBOM"
+
+                    # Controleer of SBOM geldig JSON is
+                    cat sbom.cdx.json | jq empty
+
+                    # Controleer component count
+                    COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
+                    echo "Generated SBOM with $COMPONENT_COUNT components"
+
+                    # Groovy error() werkt niet in sh-blok, gebruik exit 1
+                    if [ "$COMPONENT_COUNT" -eq 0 ]; then
+                        echo "ERROR: No components found in SBOM!"
+                        exit 1
+                    fi
+
+                    echo "SBOM VALIDATION SUCCESS"
+                '''
+                archiveArtifacts artifacts: 'sbom.cdx.json,target/*.jar', fingerprint: true
+            }
+        }
+        stage('SBOM Validatie (BSI TR-03183-2)') {
+            steps {
+                sh '''
+                    apt-get install -y python3 -q
+                    python3 validate_sbom.py sbom.cdx.json
+                '''
+            }
+        }
+
+        stage('Compliance Rapport') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'compliance-report',
+                    reportFiles: 'compliance-report.html',
+                    reportName: 'CRA Compliance Rapport'
+                ])
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: '''
+                    sbom.cdx.json,
+                    compliance-report/**,
+                ''', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
