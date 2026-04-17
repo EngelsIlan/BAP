@@ -74,6 +74,7 @@ pipeline {
                 archiveArtifacts artifacts: 'sbom.cdx.json,target/*.jar', fingerprint: true
             }
         }
+        // Deel 4: SBOM Validatie volgens BSI TR-03183-2
         stage('SBOM Validatie (BSI TR-03183-2)') {
             steps {
                 sh '''
@@ -101,6 +102,70 @@ pipeline {
                 ])
             }
         }
+        // Deel 2: Dependency-check scan, HTML rapport genereren & fail bij HIGH/CRITICAL (>=7.0 CVSS)
+        stage('Dependency Check scan') {
+            steps {
+                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        sh '''
+                            echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                            # Download Dependency-Check CLI
+                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                            unzip -q dependency-check.zip
+
+                            # Run the scan, output in HTML and JSON, fail on CVSS >= 7.0 but don't fail the build so we can publish the report
+                            ./dependency-check/bin/dependency-check.sh \
+                                --project "spring-petclinic" \
+                                --scan ./target/spring-petclinic-4.0.0-SNAPSHOT.jar \
+                                --format HTML \
+                                --format JSON \
+                                --out ./dependency-check-report \
+                                --disableOssIndex \
+                                --nvdApiKey $NVD_API_KEY \
+                                --failOnCVSS 7
+                        '''
+                    }
+                }
+            }
+        }
+
+        // Deel 3: SonarQube scan, Quality Gate check
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=spring-petclinic \
+                            -Dsonar.projectName="Spring Petclinic" \
+                            -Dsonar.java.binaries=target/classes \
+                            -q
+                    '''
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        // Deel 2 publish report
+        stage('Publish Report') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'dependency-check-report',
+                    reportFiles: 'dependency-check-report.html',
+                    reportName: 'OWASP Dependency-Check Report'
+                ])
+                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
+            }
+        }
 
         stage('Archive Artifacts') {
             steps {
@@ -110,14 +175,15 @@ pipeline {
                 ''', fingerprint: true
             }
         }
-        stage('Test failure handling') {
-            steps {
-                sh '''
-                    echo "This stage is designed to fail to test failure handling."
-                    exit 1
-                '''
-            }
-        }
+
+        // stage('Test failure handling') {
+        //     steps {
+        //         sh '''
+        //             echo "This stage is designed to fail to test failure handling."
+        //             exit 1
+        //         '''
+        //     }
+        // }
     }
 
     post {
