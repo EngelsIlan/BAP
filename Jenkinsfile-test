@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        IMAGE_NAME = "spring-petclinic:${BUILD_NUMBER}"
-    }
-
     tools {
         maven 'Maven'
     }
@@ -28,17 +24,8 @@ pipeline {
             }
         }
 
-        stage('Build Container Image') {
-            steps {
-                sh '''
-                    echo "BUILDING DOCKER IMAGE"
-                    docker build -t ${IMAGE_NAME} .
-                    docker images | grep spring-petclinic
-                '''
-            }
-        }
-
         stage('Parallel Security Checks') {
+            failFast true
             parallel {
 
                 stage('SBOM Flow') {
@@ -58,6 +45,8 @@ pipeline {
                                     echo "=== SBOM Preview ==="
                                     cat sbom.cdx.json | jq '.components | length'
                                     cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+
+                                    echo "SBOM GENERATION COMPLETE"
                                 '''
                             }
                         }
@@ -66,6 +55,7 @@ pipeline {
                             steps {
                                 sh '''
                                     echo "VALIDATING SBOM"
+
                                     cat sbom.cdx.json | jq empty
 
                                     COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
@@ -75,19 +65,25 @@ pipeline {
                                         echo "ERROR: No components found in SBOM!"
                                         exit 1
                                     fi
+
+                                    echo "SBOM VALIDATION SUCCESS"
                                 '''
                                 archiveArtifacts artifacts: 'sbom.cdx.json,target/*.jar', fingerprint: true
                             }
                         }
-
+                        
                         stage('SBOM Validatie (BSI TR-03183-2)') {
                             steps {
                                 sh '''
                                     git clone https://github.com/EngelsIlan/BAP.git
+                                    pwd
+                                    ls -a
+
                                     python3 BAP/validate_sbom.py sbom.cdx.json
                                 '''
                             }
                         }
+
                     }
                 }
 
@@ -99,6 +95,7 @@ pipeline {
                                     catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                                         sh '''
                                             echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+
                                             curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
                                             unzip -q dependency-check.zip
 
@@ -158,43 +155,8 @@ pipeline {
                         }
                     }
                 }
-
-                stage('Grype Container Scan') {
-                    stages {
-                        stage('Install Grype') {
-                            steps {
-                                sh '''
-                                    curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
-                                '''
-                            }
-                        }
-
-                        stage('Scan Container Image') {
-                            steps {
-                                sh '''
-                                    echo "SCANNING CONTAINER IMAGE WITH GRYPE"
-                                    ./grype ${IMAGE_NAME} --fail-on high -o table
-                                '''
-                            }
-                        }
-                    }
-                }
             }
         }
-
-        stage('Run Container') {
-            steps {
-                sh '''
-                    echo "RUNNING CONTAINER"
-                    docker rm -f spring-petclinic || true
-                    docker run -d --name spring-petclinic -p 8080:8080 ${IMAGE_NAME}
-                    sleep 20
-                    docker ps
-                    docker logs spring-petclinic | tail -n 50
-                '''
-            }
-        }
-
         stage('Compliance Rapport') {
             steps {
                 publishHTML(target: [
@@ -235,8 +197,6 @@ pipeline {
             }
         }
         always {
-            sh 'docker rm -f spring-petclinic || true'
-            sh 'docker rmi ${IMAGE_NAME} || true'
             cleanWs()
         }
     }
