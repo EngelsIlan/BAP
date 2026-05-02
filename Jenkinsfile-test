@@ -85,7 +85,10 @@ pipeline {
                             steps {
                                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                                     sh '''
-                                        python3 BAP/validate_sbom.py sbom.cdx.json
+                                        cd BAP
+                                        git fetch origin
+                                        git reset --hard origin/main
+                                        python3 validate_sbom.py ../sbom.cdx.json
                                     '''
                                 }
                             }

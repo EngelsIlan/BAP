@@ -432,4 +432,4 @@ if __name__ == "__main__":
     status, total_components, total_issues, total_warnings = validate(sbom_file)
     generate_report(sbom_file, status, total_components, total_issues, total_warnings)
 
-    #sys.exit(1 if total_issues > 0 else 0)
+    sys.exit(1 if total_issues > 0 else 0)
