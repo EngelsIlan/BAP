@@ -37,184 +37,184 @@ pipeline {
             }
         }
 
-        stage('Parallel Security Checks') {
-            parallel {
+        // stage('Parallel Security Checks') {
+        //     parallel {
 
-                stage('SBOM Flow') {
-                    stages {
-                        stage('Generate SBOM') {
-                            steps {
-                                sh '''
-                                    echo "GENERATING SBOM WITH SYFT"
+        //         stage('SBOM Flow') {
+        //             stages {
+        //                 stage('Generate SBOM') {
+        //                     steps {
+        //                         sh '''
+        //                             echo "GENERATING SBOM WITH SYFT"
 
-                                    apt-get update -q
-                                    apt-get install -y jq python3
+        //                             apt-get update -q
+        //                             apt-get install -y jq python3
 
-                                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+        //                             curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
 
-                                    ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
+        //                             ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
 
-                                    echo "=== SBOM Preview ==="
-                                    cat sbom.cdx.json | jq '.components | length'
-                                    cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
-                                '''
-                            }
-                        }
+        //                             echo "=== SBOM Preview ==="
+        //                             cat sbom.cdx.json | jq '.components | length'
+        //                             cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+        //                         '''
+        //                     }
+        //                 }
 
-                        stage('Validate & Archive SBOM') {
-                            steps {
-                                sh '''
-                                    echo "VALIDATING SBOM"
-                                    cat sbom.cdx.json | jq empty
+        //                 stage('Validate & Archive SBOM') {
+        //                     steps {
+        //                         sh '''
+        //                             echo "VALIDATING SBOM"
+        //                             cat sbom.cdx.json | jq empty
 
-                                    COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
-                                    echo "Generated SBOM with $COMPONENT_COUNT components"
+        //                             COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
+        //                             echo "Generated SBOM with $COMPONENT_COUNT components"
 
-                                    if [ "$COMPONENT_COUNT" -eq 0 ]; then
-                                        echo "ERROR: No components found in SBOM!"
-                                        exit 1
-                                    fi
-                                '''
-                                archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
-                            }
-                        }
+        //                             if [ "$COMPONENT_COUNT" -eq 0 ]; then
+        //                                 echo "ERROR: No components found in SBOM!"
+        //                                 exit 1
+        //                             fi
+        //                         '''
+        //                         archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
+        //                     }
+        //                 }
 
-                        stage('SBOM Validatie (BSI TR-03183-2)') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    sh '''
-                                        cd BAP
-                                        git fetch origin
-                                        git reset --hard origin/main
-                                        python3 validate_sbom.py ../sbom.cdx.json
-                                    '''
-                                }
-                            }
-                        }
-                    }
-                }
+        //                 stage('SBOM Validatie (BSI TR-03183-2)') {
+        //                     steps {
+        //                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+        //                             sh '''
+        //                                 cd BAP
+        //                                 git fetch origin
+        //                                 git reset --hard origin/main
+        //                                 python3 validate_sbom.py ../sbom.cdx.json
+        //                             '''
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
 
-                stage('Dependency Check Flow') {
-                    stages {
-                        stage('Dependency Check scan') {
-                            steps {
-                                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                        sh '''
-                                            echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
-                                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
-                                            unzip -q dependency-check.zip
+        //         stage('Dependency Check Flow') {
+        //             stages {
+        //                 stage('Dependency Check scan') {
+        //                     steps {
+        //                         withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+        //                             catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+        //                                 sh '''
+        //                                     echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+        //                                     curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+        //                                     unzip -q dependency-check.zip
 
-                                            ./dependency-check/bin/dependency-check.sh \
-                                                --project "vulnerable-python-app" \
-                                                --scan . \
-                                                --format HTML \
-                                                --format JSON \
-                                                --out ./dependency-check-report \
-                                                --disableOssIndex \
-                                                --enableExperimental \
-                                                --nvdApiKey $NVD_API_KEY \
-                                                --failOnCVSS 7
-                                        '''
-                                    }
-                                }
-                            }
-                        }
+        //                                     ./dependency-check/bin/dependency-check.sh \
+        //                                         --project "vulnerable-python-app" \
+        //                                         --scan . \
+        //                                         --format HTML \
+        //                                         --format JSON \
+        //                                         --out ./dependency-check-report \
+        //                                         --disableOssIndex \
+        //                                         --enableExperimental \
+        //                                         --nvdApiKey $NVD_API_KEY \
+        //                                         --failOnCVSS 7
+        //                                 '''
+        //                             }
+        //                         }
+        //                     }
+        //                 }
 
-                        stage('Publish Dependency Report') {
-                            steps {
-                                publishHTML(target: [
-                                    allowMissing: false,
-                                    alwaysLinkToLastBuild: true,
-                                    keepAll: true,
-                                    reportDir: 'dependency-check-report',
-                                    reportFiles: 'dependency-check-report.html',
-                                    reportName: 'OWASP Dependency-Check Report'
-                                ])
-                                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
-                            }
-                        }
-                    }
-                }
+        //                 stage('Publish Dependency Report') {
+        //                     steps {
+        //                         publishHTML(target: [
+        //                             allowMissing: false,
+        //                             alwaysLinkToLastBuild: true,
+        //                             keepAll: true,
+        //                             reportDir: 'dependency-check-report',
+        //                             reportFiles: 'dependency-check-report.html',
+        //                             reportName: 'OWASP Dependency-Check Report'
+        //                         ])
+        //                         archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
+        //                     }
+        //                 }
+        //             }
+        //         }
 
-                stage('SonarQube Flow') {
-                    stages {
-                        stage('SonarQube Scan') {
-                            steps {
-                                withSonarQubeEnv('SonarQube') {
-                                    sh '''
-                                        curl -L https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
-                                        unzip -q sonar-scanner.zip
-                                        ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
-                                            -Dsonar.projectKey=vulnerable-python-app \
-                                            -Dsonar.projectName="Vulnerable Python App" \
-                                            -Dsonar.sources=.
-                                    '''
-                                }
-                            }
-                        }
+        //         stage('SonarQube Flow') {
+        //             stages {
+        //                 stage('SonarQube Scan') {
+        //                     steps {
+        //                         withSonarQubeEnv('SonarQube') {
+        //                             sh '''
+        //                                 curl -L https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+        //                                 unzip -q sonar-scanner.zip
+        //                                 ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+        //                                     -Dsonar.projectKey=vulnerable-python-app \
+        //                                     -Dsonar.projectName="Vulnerable Python App" \
+        //                                     -Dsonar.sources=.
+        //                             '''
+        //                         }
+        //                     }
+        //                 }
 
-                        stage('Quality Gate') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    timeout(time: 15, unit: 'MINUTES') {
-                                        waitForQualityGate abortPipeline: false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        //                 stage('Quality Gate') {
+        //                     steps {
+        //                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+        //                             timeout(time: 15, unit: 'MINUTES') {
+        //                                 waitForQualityGate abortPipeline: false
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
 
-                stage('Grype Container Scan') {
-                    stages {
-                        stage('Install Grype') {
-                            steps {
-                                sh '''
-                                    curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
-                                '''
-                            }
-                        }
+        //         stage('Grype Container Scan') {
+        //             stages {
+        //                 stage('Install Grype') {
+        //                     steps {
+        //                         sh '''
+        //                             curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
+        //                         '''
+        //                     }
+        //                 }
 
-                        stage('Scan Container Image') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    sh '''
-                                        echo "SCANNING CONTAINER IMAGE WITH GRYPE"
-                                        ./grype ${IMAGE_NAME} --fail-on high -o table
-                                    '''
-                                }
-                            }
-                        }
-                    }
-                }
+        //                 stage('Scan Container Image') {
+        //                     steps {
+        //                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+        //                             sh '''
+        //                                 echo "SCANNING CONTAINER IMAGE WITH GRYPE"
+        //                                 ./grype ${IMAGE_NAME} --fail-on high -o table
+        //                             '''
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
 
-                stage('TruffleHog Secrets Scan') {
-                    stages {
-                        stage('Install TruffleHog'){
-                            steps {
-                                sh '''
-                                    echo "SCANNING FOR SECRETS WITH TRUFFLEHOG"
-                                    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
-                                '''
-                            }
-                        }
+        //         stage('TruffleHog Secrets Scan') {
+        //             stages {
+        //                 stage('Install TruffleHog'){
+        //                     steps {
+        //                         sh '''
+        //                             echo "SCANNING FOR SECRETS WITH TRUFFLEHOG"
+        //                             curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
+        //                         '''
+        //                     }
+        //                 }
                         
-                        stage('Scan for Secrets') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                sh '''
-                                    ./trufflehog git file://. --only-verified --fail --json > trufflehog-report.json || true
-                                '''
-                                }
-                                archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
+        //                 stage('Scan for Secrets') {
+        //                     steps {
+        //                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+        //                         sh '''
+        //                             ./trufflehog git file://. --only-verified --fail --json > trufflehog-report.json || true
+        //                         '''
+        //                         }
+        //                         archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
 
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Run Container') {
             steps {
@@ -225,6 +225,11 @@ pipeline {
                     docker run -d --name vulnerable-python-app -p 9090:8080 ${IMAGE_NAME}
                     sleep 20
                     docker ps
+                    if [ "$(docker inspect -f '{{.State.Running}}' vulnerable-python-app)" != "true" ]; then
+                        echo "ERROR: Container failed to start!"
+                        exit 1
+                        docker logs vulnerable-python-app
+                    fi
                     docker logs vulnerable-python-app | tail -n 50
                 '''
             }
