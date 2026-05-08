@@ -241,7 +241,7 @@ pipeline {
                         docker ps --format '{{.Names}}'
 
 
-                        HOST_PATH=$(docker inspect $(hostname) --format='{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Source }}{{ end }}{{ end }}')/workspace/test_pipeline/zap-report
+                        HOST_PATH="$(docker inspect $(hostname) --format='{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Source }}{{ end }}{{ end }}')/workspace/Proof of Concept/zap-report"
 
                         docker run --rm \
                             --add-host=host.docker.internal:host-gateway \
