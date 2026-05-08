@@ -3,4 +3,4 @@ WORKDIR /app
 COPY vulnerable-app/python/requirements.txt .
 RUN pip install -r requirements.txt
 COPY vulnerable-app/python/ .
-CMD ["python3", "app.py"]
+CMD ["python3", "test.py"]
