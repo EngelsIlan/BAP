@@ -245,7 +245,7 @@ pipeline {
 
                         docker run --rm \
                             --add-host=host.docker.internal:host-gateway \
-                            -v  ${HOST_PATH}:/zap/wrk:rw \
+                            -v "${HOST_PATH}:/zap/wrk:rw" \
                             -u root\
                             ghcr.io/zaproxy/zaproxy:stable \
                             zap-baseline.py \
