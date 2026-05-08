@@ -83,9 +83,14 @@ pipeline {
 
                         stage('SBOM Validatie (BSI TR-03183-2)') {
                             steps {
-                                sh '''
-                                    python3 BAP/validate_sbom.py sbom.cdx.json
-                                '''
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        cd BAP
+                                        git fetch origin
+                                        git reset --hard origin/main
+                                        python3 validate_sbom.py ../sbom.cdx.json
+                                    '''
+                                }
                             }
                         }
                     }
@@ -181,12 +186,38 @@ pipeline {
                         }
                     }
                 }
+
+                stage('TruffleHog Secrets Scan') {
+                    stages {
+                        stage('Install TruffleHog'){
+                            steps {
+                                sh '''
+                                    echo "SCANNING FOR SECRETS WITH TRUFFLEHOG"
+                                    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
+                                '''
+                            }
+                        }
+                        
+                        stage('Scan for Secrets') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                sh '''
+                                    ./trufflehog git file://. --only-verified --fail --json > trufflehog-report.json || true
+                                '''
+                                }
+                                archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
+
+                            }
+                        }
+                    }
+                }
             }
         }
 
         stage('Run Container') {
             steps {
                 sh '''
+                    # Container wordt niet gerunt voordat hij gescanned is met Grype, vandaar na security tests pas
                     echo "RUNNING CONTAINER"
                     docker rm -f spring-petclinic || true
                     docker run -d --name spring-petclinic -p 9090:8080 ${IMAGE_NAME}
@@ -197,6 +228,48 @@ pipeline {
             }
         }
 
+        // Extra: DAST
+        stage('OWASP ZAP Scan') {
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '''
+                        echo "STARTING OWASP ZAP DAST SCAN"
+                        mkdir -p zap-report
+                        chmod 777 zap-report
+                        docker ps -a
+                        docker ps
+                        docker ps --format '{{.Names}}'
+
+
+                        HOST_PATH=$(docker inspect $(hostname) --format='{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Source }}{{ end }}{{ end }}')/workspace/test_pipeline/zap-report
+
+                        docker run --rm \
+                            --add-host=host.docker.internal:host-gateway \
+                            -v  ${HOST_PATH}:/zap/wrk:rw \
+                            -u root\
+                            ghcr.io/zaproxy/zaproxy:stable \
+                            zap-baseline.py \
+                                -t http://host.docker.internal:9090 \
+                                -r zap-report.html \
+                                -J zap-report.json \
+                                -d \
+                                -I
+
+                        chmod -R 777 zap-report
+                        ls -la zap-report
+                    '''
+                }
+                publishHTML(target: [
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'zap-report',
+                    reportFiles: 'zap-report.html',
+                    reportName: 'OWASP ZAP DAST Report'
+                ])
+                archiveArtifacts artifacts: 'zap-report/**', fingerprint: true
+            }
+        }
         stage('Compliance Rapport') {
             steps {
                 publishHTML(target: [
