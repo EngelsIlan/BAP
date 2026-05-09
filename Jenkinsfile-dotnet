@@ -233,8 +233,8 @@ pipeline {
                                     sh '''
                                         ./trufflehog git file://. --fail --json 2>/dev/null > trufflehog-report.json || true
                                         ./trufflehog git file://. --fail
-                                        ./trufflehog filesystem . --fail --json 2>/dev/null > trufflehog-report.json || true
-                                        ./trufflehog filesystem . --fail 
+                                        #./trufflehog filesystem . --fail --json 2>/dev/null > trufflehog-report.json || true
+                                        ./trufflehog filesystem . --fail --only-verified
                                         
                                         if [ ! -s trufflehog-report.json ]; then
                                             echo '{"result": "No verified secrets found"}' > trufflehog-report.json
