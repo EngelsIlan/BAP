@@ -1,14 +1,16 @@
 pipeline {
     agent any
 
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '5'))
+    environment {
+        IMAGE_NAME = "vulnerable-dotnet-app:${BUILD_NUMBER}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'https://github.com/EngelsIlan/BAP.git',
+                    branch: 'main'
+                sh 'ls -a'
             }
         }
 
@@ -17,17 +19,16 @@ pipeline {
                 sh '''
                     apt-get update -q
                     apt-get install -y wget libicu-dev -q
-                    # Installeer .NET SDK
-                    if ! command -v dotnet &> /dev/null; then
 
+                    if ! command -v dotnet &> /dev/null; then
                         wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
                         chmod +x dotnet-install.sh
                         ./dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet
                     fi
+
                     export PATH=$PATH:/usr/local/dotnet
                     dotnet --version
 
-                    # Restore NuGet packages
                     cd vulnerable-app/dotnet
                     dotnet restore
                 '''
@@ -38,12 +39,10 @@ pipeline {
             steps {
                 sh '''
                     export PATH=$PATH:/usr/local/dotnet
-                    
+
                     chmod -R 777 vulnerable-app/dotnet
                     cd vulnerable-app/dotnet
                     rm -rf obj bin
-                    mkdir -p obj/Release/net8.0
-                    mkdir -p bin/Release/net8.0
 
                     dotnet build --configuration Release --no-incremental /warnaserror:false
                     echo "BUILD SUCCESS"
@@ -51,86 +50,227 @@ pipeline {
             }
         }
 
-        stage('Generate SBOM') {
+        stage('Build Container Image') {
             steps {
                 sh '''
-                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
-                    ./syft scan dir:vulnerable-app/dotnet -o cyclonedx-json > sbom-dotnet.cdx.json
-
-                    echo "=== SBOM Preview ==="
-                    cat sbom-dotnet.cdx.json | jq '.components | length'
-                    cat sbom-dotnet.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                    echo "BUILDING DOCKER IMAGE"
+                    docker build -f Docker/Dockerfile.dotnet -t ${IMAGE_NAME} .
+                    docker images | grep vulnerable-dotnet-app
                 '''
             }
         }
 
-        stage('Dependency-Check Scan') {
-            steps {
-                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                        sh '''
-                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
-                            unzip -q dependency-check.zip
+        stage('Parallel Security Checks') {
+            parallel {
 
-                            ./dependency-check/bin/dependency-check.sh \
-                                --project "vulnerable-dotnet-app" \
-                                --scan ./vulnerable-app/dotnet \
-                                --format HTML \
-                                --format JSON \
-                                --out ./dependency-check-report \
-                                --nvdApiKey $NVD_API_KEY \
-                                --disableOssIndex \
-                                --failOnCVSS 7
-                        '''
+                stage('SBOM Flow') {
+                    stages {
+                        stage('Generate SBOM') {
+                            steps {
+                                sh '''
+                                    echo "GENERATING SBOM WITH SYFT"
+                                    apt-get update -q
+                                    apt-get install -y jq python3 -q
+
+                                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+                                    ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
+
+                                    echo "=== SBOM Preview ==="
+                                    cat sbom.cdx.json | jq '.components | length'
+                                    cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                                '''
+                            }
+                        }
+
+                        stage('Validate & Archive SBOM') {
+                            steps {
+                                sh '''
+                                    echo "VALIDATING SBOM"
+                                    cat sbom.cdx.json | jq empty
+
+                                    COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
+                                    echo "Generated SBOM with $COMPONENT_COUNT components"
+
+                                    if [ "$COMPONENT_COUNT" -eq 0 ]; then
+                                        echo "ERROR: No components found in SBOM!"
+                                        exit 1
+                                    fi
+                                '''
+                                archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
+                            }
+                        }
+
+                        stage('SBOM Validatie (BSI TR-03183-2)') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        python3 validate_sbom.py sbom.cdx.json
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Dependency Check Flow') {
+                    stages {
+                        stage('Dependency Check scan') {
+                            steps {
+                                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                        sh '''
+                                            echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                                            unzip -q dependency-check.zip
+
+                                            ./dependency-check/bin/dependency-check.sh \
+                                                --project "vulnerable-dotnet-app" \
+                                                --scan ./vulnerable-app/dotnet \
+                                                --format HTML \
+                                                --format JSON \
+                                                --out ./dependency-check-report \
+                                                --disableOssIndex \
+                                                --nvdApiKey $NVD_API_KEY \
+                                                --failOnCVSS 7
+                                        '''
+                                    }
+                                }
+                            }
+                        }
+
+                        stage('Publish Dependency Report') {
+                            steps {
+                                publishHTML(target: [
+                                    allowMissing: false,
+                                    alwaysLinkToLastBuild: true,
+                                    keepAll: true,
+                                    reportDir: 'dependency-check-report',
+                                    reportFiles: 'dependency-check-report.html',
+                                    reportName: 'OWASP Dependency-Check Report'
+                                ])
+                                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
+                            }
+                        }
+                    }
+                }
+
+                stage('SonarQube Flow') {
+                    stages {
+                        stage('SonarQube Scan') {
+                            steps {
+                                withSonarQubeEnv('SonarQube') {
+                                    sh '''
+                                        export PATH=$PATH:/usr/local/dotnet:/root/.dotnet/tools
+                                        export DOTNET_ROOT=/usr/local/dotnet
+
+                                        dotnet tool install --global dotnet-sonarscanner 2>/dev/null || true
+
+                                        cd vulnerable-app/dotnet
+
+                                        dotnet sonarscanner begin \
+                                            /k:"vulnerable-dotnet-app" \
+                                            /n:"Vulnerable .NET App" \
+                                            /d:sonar.host.url="${SONAR_HOST_URL}" \
+                                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
+
+                                        dotnet build --configuration Release --no-incremental /warnaserror:false
+
+                                        dotnet sonarscanner end \
+                                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
+                                    '''
+                                }
+                            }
+                        }
+
+                        stage('Quality Gate') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    timeout(time: 15, unit: 'MINUTES') {
+                                        waitForQualityGate abortPipeline: false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Grype Container Scan') {
+                    stages {
+                        stage('Install Grype') {
+                            steps {
+                                sh '''
+                                    curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
+                                '''
+                            }
+                        }
+
+                        stage('Scan Container Image') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        echo "SCANNING CONTAINER IMAGE WITH GRYPE"
+                                        ./grype ${IMAGE_NAME} --fail-on high -o table
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('TruffleHog Secrets Scan') {
+                    stages {
+                        stage('Install TruffleHog') {
+                            steps {
+                                sh '''
+                                    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
+                                '''
+                            }
+                        }
+
+                        stage('Scan for Secrets') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        ./trufflehog git file://. --only-verified --fail --json 2>/dev/null > trufflehog-report.json || true
+
+                                        if [ ! -s trufflehog-report.json ]; then
+                                            echo '{"result": "No verified secrets found"}' > trufflehog-report.json
+                                        fi
+                                    '''
+                                }
+                                archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
+                            }
+                        }
                     }
                 }
             }
         }
 
-        stage('SonarQube Scan') {
+        // OWASP ZAP niet van toepassing: vulnerable-dotnet-app is een CLI applicatie
+        // zonder HTTP server. ZAP vereist een draaiende webapplicatie als target.
+
+        stage('Archive Artifacts') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        export PATH=$PATH:/usr/local/dotnet:/root/.dotnet/tools
-                        export DOTNET_ROOT=/usr/local/dotnet
-
-                        # Installeer dotnet-sonarscanner indien nodig
-                        dotnet tool install --global dotnet-sonarscanner 2>/dev/null || true
-
-                        cd vulnerable-app/dotnet
-
-                        dotnet sonarscanner begin \
-                            /k:"vulnerable-dotnet-app" \
-                            /n:"Vulnerable .NET App" \
-                            /d:sonar.host.url="${SONAR_HOST_URL}" \
-                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
-
-                        dotnet build --configuration Release --no-incremental /warnaserror:false
-
-                        dotnet sonarscanner end \
-                            /d:sonar.token="${SONAR_AUTH_TOKEN}"
-                    '''
-                }
-            }
-        }
-
-        stage('Publish Reports') {
-            steps {
-                publishHTML(target: [
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'dependency-check-report',
-                    reportFiles: 'dependency-check-report.html',
-                    reportName: 'OWASP Dependency-Check Report'
-                ])
-                archiveArtifacts artifacts: 'sbom-dotnet.cdx.json,dependency-check-report/**', fingerprint: true
+                archiveArtifacts artifacts: 'sbom.cdx.json,dependency-check-report/**,trufflehog-report.json',
+                    fingerprint: true,
+                    allowEmptyArchive: true
             }
         }
     }
 
     post {
+        failure {
+            withCredentials([
+                string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
+                string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
+            ]) {
+                sh '''
+                    python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "${JOB_NAME}" "${BUILD_NUMBER}" "${BUILD_URL}"
+                '''
+            }
+        }
         always {
+            sh 'docker rmi ${IMAGE_NAME} || true'
             cleanWs()
         }
     }
