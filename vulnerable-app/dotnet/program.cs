@@ -18,7 +18,8 @@ namespace VulnerableApp
         private const string DB_PASSWORD = "admin123";
         private const string SECRET_KEY = "supersecretkey123";
         private const string API_KEY = "sk-1234567890abcdef";
-
+        // Hardcoded API Key voor TruffleHog demo
+        private const string API_KEY = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
         // 2. SQL Injection
         static string GetUser(string username)
         {
