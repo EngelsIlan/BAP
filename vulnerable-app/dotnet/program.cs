@@ -17,7 +17,7 @@ namespace VulnerableApp
         // 1. Hardcoded credentials (Security Hotspot)
         private const string DB_PASSWORD = "admin123";
         private const string SECRET_KEY = "supersecretkey123";
-        private const string API_KEY = "sk-1234567890abcdef";
+        //private const string API_KEY = "sk-1234567890abcdef";
         // Hardcoded API Key voor TruffleHog demo
         private const string API_KEY = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
         // 2. SQL Injection
