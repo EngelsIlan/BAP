@@ -19,14 +19,14 @@ pipeline {
             }
         }
 
-        stage('Test Failure Handling') {
-            steps {
-                sh '''
-                    echo "THIS STAGE INTENTIONALLY FAILS TO TEST FAILURE HANDLING"
-                    exit 1
-                '''
-            }
-        }
+        // stage('Test Failure Handling') {
+        //     steps {
+        //         sh '''
+        //             echo "THIS STAGE INTENTIONALLY FAILS TO TEST FAILURE HANDLING"
+        //             exit 1
+        //         '''
+        //     }
+        // }
 
         stage('Build Container Image') {
             steps {
@@ -283,32 +283,33 @@ pipeline {
             echo 'BUILD SUCCESS'
         }
         unstable {
-            echo 'BUILD UNSTABLE'
-        }
-        aborted {
-            echo 'BUILD ABORTED'
-        }
-        failure {
             withCredentials([
                 string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
                 string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
             ]) {
                 sh '''
-                    set -eux
-                    echo "BUILD FAILED - SENDING EMAIL NOTIFICATION"
+                    echo "BUILD UNSTABLE - SENDING EMAIL NOTIFICATION"
                     python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "$JOB_NAME" "$BUILD_NUMBER" "$BUILD_URL"
                 '''
             }
+        }
+        aborted {
+            echo 'BUILD ABORTED'
+        }
+        failure {
+            echo 'BUILD FAILED'
         }
         always {
             sh '''
                 echo "currentBuild.result = ${currentBuild.currentResult}"
             '''
         }
-        // always {
-        //     sh 'docker rm -f cra-pipeline-test-app || true'
-        //     sh 'docker rmi ${IMAGE_NAME} || true'
-        //     cleanWs()
-        // }
+        always {
+            sh '''
+                echo "currentBuild.result = ${currentBuild.currentResult}"
+                docker rm -f cra-pipeline-test-app || true
+                docker rmi ${IMAGE_NAME} || true
+            '''
+        }
     }
 }
