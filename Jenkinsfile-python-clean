@@ -18,7 +18,7 @@ pipeline {
             steps {
                 sh '''
                     echo "BUILDING DOCKER IMAGE"
-                    docker build -f Docker/Dockerfile.nonvuln-python -t ${IMAGE_NAME} .
+                    docker build -f Docker/Dockerfile.python.CLEAN -t ${IMAGE_NAME} .
                     docker images | grep cra-pipeline-test-app
                 '''
             }
