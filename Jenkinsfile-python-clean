@@ -15,7 +15,6 @@ pipeline {
                     pwd
                     ls -la
                     find . -maxdepth 3 -type f | sort
-                    echo "Check failure handling"
                 '''
             }
         }
@@ -299,6 +298,12 @@ pipeline {
                     python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "${JOB_NAME}" "${BUILD_NUMBER}" "${BUILD_URL}"
                 '''
             }
+        }
+        always {
+            sh '''
+                echo "currentBuild.result = ${currentBuild.currentResult}"
+            '''
+
         }
         // always {
         //     sh 'docker rm -f cra-pipeline-test-app || true'
