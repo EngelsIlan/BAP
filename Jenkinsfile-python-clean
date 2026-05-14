@@ -22,10 +22,11 @@ pipeline {
         stage('Test Failure Handling') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                sh '''
-                    echo "THIS STAGE INTENTIONALLY FAILS TO TEST FAILURE HANDLING"
-                    exit 1
-                '''
+                    sh '''
+                        echo "THIS STAGE INTENTIONALLY FAILS TO TEST FAILURE HANDLING"
+                        exit 1
+                    '''
+                }
             }
         }
 
