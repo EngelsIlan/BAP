@@ -111,11 +111,14 @@ pipeline {
                             steps {
                                 withSonarQubeEnv('SonarQube') {
                                     sh '''
-                                        sonar-scanner \
-                                            -Dsonar.projectKey=python-test-app \
-                                            -Dsonar.projectName="Python Test App" \
-                                            -Dsonar.sources=. \
-                                            -Dsonar.python.version=3.12
+                                        curl -L https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+                                        unzip -q sonar-scanner.zip
+
+                                        ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+                                            -Dsonar.projectKey=non-vulnerable-python-app \
+                                            -Dsonar.projectName="Non-Vulnerable Python App" \
+                                            -Dsonar.sources=non-vulnerable-app/python
+
                                     '''
                                 }
                             }
