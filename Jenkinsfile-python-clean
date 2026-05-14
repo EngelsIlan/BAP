@@ -291,10 +291,10 @@ pipeline {
                 '''
             }
         }
-        always {
-            sh 'docker rm -f cra-pipeline-test-app || true'
-            sh 'docker rmi ${IMAGE_NAME} || true'
-            cleanWs()
-        }
+        // always {
+        //     sh 'docker rm -f cra-pipeline-test-app || true'
+        //     sh 'docker rmi ${IMAGE_NAME} || true'
+        //     cleanWs()
+        // }
     }
 }
