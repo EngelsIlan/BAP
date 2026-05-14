@@ -16,7 +16,7 @@ pipeline {
                     ls -la
                     find . -maxdepth 3 -type f | sort
                     echo "Check failure handling"
-                    exit 0
+                    exit 1
                 '''
             }
         }
