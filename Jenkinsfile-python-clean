@@ -135,7 +135,7 @@ pipeline {
                                         ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
                                             -Dsonar.projectKey=cra-pipeline-test-app \
                                             -Dsonar.projectName="CRA Pipeline Test App" \
-                                            -Dsonar.sources=non-vulnerable-app/python
+                                            -Dsonar.sources=non-vulnerable-app/python \
                                             -Dsonar.python.version=3.12 \
                                             -Dsonar.sourceEncoding=UTF-8 \
                                             -Dsonar.qualitygate.wait=false
