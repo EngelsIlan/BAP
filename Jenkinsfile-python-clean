@@ -302,11 +302,6 @@ pipeline {
         always {
             sh '''
                 echo "currentBuild.result = ${currentBuild.currentResult}"
-            '''
-        }
-        always {
-            sh '''
-                echo "currentBuild.result = ${currentBuild.currentResult}"
                 docker rm -f cra-pipeline-test-app || true
                 docker rmi ${IMAGE_NAME} || true
             '''
