@@ -16,6 +16,14 @@ pipeline {
                     ls -la
                     find . -maxdepth 3 -type f | sort
                     echo "Check failure handling"
+                '''
+            }
+        }
+
+        stage('Test Failure Handling') {
+            steps {
+                sh '''
+                    echo "THIS STAGE INTENTIONALLY FAILS TO TEST FAILURE HANDLING"
                     exit 1
                 '''
             }
