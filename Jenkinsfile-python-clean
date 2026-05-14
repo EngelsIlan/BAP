@@ -70,7 +70,7 @@ pipeline {
                                         sh '''
                                             echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
                                             curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
-                                            unzip -q dependency-check.zip
+                                            unzip -oq dependency-check.zip
 
                                             mkdir -p dependency-check-report
 
