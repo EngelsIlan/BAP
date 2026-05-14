@@ -15,6 +15,8 @@ pipeline {
                     pwd
                     ls -la
                     find . -maxdepth 3 -type f | sort
+                    echo "Check failure handling"
+                    exit 0
                 '''
             }
         }
@@ -81,48 +83,48 @@ pipeline {
                     }
                 }
 
-                // stage('Dependency Check Flow') {
-                //     stages {
-                //         stage('Dependency Check scan') {
-                //             steps {
-                //                 withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                //                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                //                         sh '''
-                //                             echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
-                //                             curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
-                //                             unzip -q dependency-check.zip
+                stage('Dependency Check Flow') {
+                    stages {
+                        stage('Dependency Check scan') {
+                            steps {
+                                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                        sh '''
+                                            echo "STARTING OWASP DEPENDENCY-CHECK SCAN"
+                                            curl -L https://github.com/dependency-check/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip -o dependency-check.zip
+                                            unzip -q dependency-check.zip
 
-                //                             ./dependency-check/bin/dependency-check.sh \
-                //                                 --project "cra-pipeline-test-app" \
-                //                                 --scan ./non-vulnerable-app/python \
-                //                                 --format HTML \
-                //                                 --format JSON \
-                //                                 --out ./dependency-check-report \
-                //                                 --disableOssIndex \
-                //                                 --enableExperimental \
-                //                                 --nvdApiKey $NVD_API_KEY \
-                //                                 --failOnCVSS 7
-                //                         '''
-                //                     }
-                //                 }
-                //             }
-                //         }
+                                            ./dependency-check/bin/dependency-check.sh \
+                                                --project "cra-pipeline-test-app" \
+                                                --scan ./non-vulnerable-app/python \
+                                                --format HTML \
+                                                --format JSON \
+                                                --out ./dependency-check-report \
+                                                --disableOssIndex \
+                                                --enableExperimental \
+                                                --nvdApiKey $NVD_API_KEY \
+                                                --failOnCVSS 7
+                                        '''
+                                    }
+                                }
+                            }
+                        }
 
-                //         stage('Publish Dependency Report') {
-                //             steps {
-                //                 publishHTML(target: [
-                //                     allowMissing: false,
-                //                     alwaysLinkToLastBuild: true,
-                //                     keepAll: true,
-                //                     reportDir: 'dependency-check-report',
-                //                     reportFiles: 'dependency-check-report.html',
-                //                     reportName: 'OWASP Dependency-Check Report'
-                //                 ])
-                //                 archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
-                //             }
-                //         }
-                //     }
-                // }
+                        stage('Publish Dependency Report') {
+                            steps {
+                                publishHTML(target: [
+                                    allowMissing: false,
+                                    alwaysLinkToLastBuild: true,
+                                    keepAll: true,
+                                    reportDir: 'dependency-check-report',
+                                    reportFiles: 'dependency-check-report.html',
+                                    reportName: 'OWASP Dependency-Check Report'
+                                ])
+                                archiveArtifacts artifacts: 'dependency-check-report/**', fingerprint: true
+                            }
+                        }
+                    }
+                }
 
                 stage('SonarQube Flow') {
                     stages {
@@ -270,7 +272,7 @@ pipeline {
     }
 
     post {
-        unstable {
+        failure {
             withCredentials([
                 string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
                 string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
