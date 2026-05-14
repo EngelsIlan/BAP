@@ -10,22 +10,25 @@ build_number = sys.argv[4]
 build_url = sys.argv[5]
 
 msg = MIMEMultipart("alternative")
-msg["Subject"] = f"CRA Pipeline FAILED: {job_name} - Build #{build_number}"
+msg["Subject"] = f"CRA Pipeline UNSTABLE: {job_name} - Build #{build_number}"
 msg["From"] = username
 msg["To"] = username
 
 body = f"""
-CRA Compliance Pipeline - FAILURE RAPPORT
+CRA Compliance Pipeline - UNSTABLE RAPPORT
 
 Job:        {job_name}
 Build:      #{build_number}
-Status:     FAILED
+Status:     UNSTABLE
 Build URL:  {build_url}
 
 Een of meerdere security checks zijn gefaald:
 - HIGH/CRITICAL CVE gevonden (CVSS >= 7.0)
 - SonarQube Quality Gate gefaald
+- Trufflehog Secret Scan gefaald
+- Grype Container Scan gefaald
 - BSI TR-03183-2 SBOM validatie gefaald
+- ...
 
 Bekijk het volledige rapport via:
 {build_url}artifact/
