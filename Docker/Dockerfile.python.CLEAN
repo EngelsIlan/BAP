@@ -4,7 +4,7 @@ RUN useradd -r -u 10001 -m appuser
 
 WORKDIR /app
 
-COPY ../non-vulnerable-app/python/app.py /app/app.py
+COPY non-vulnerable-app/python/app.py /app/app.py
 
 RUN chown -R appuser:appuser /app
 
