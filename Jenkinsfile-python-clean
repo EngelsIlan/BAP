@@ -10,7 +10,12 @@ pipeline {
             steps {
                 git url: 'https://github.com/EngelsIlan/BAP.git',
                     branch: 'main'
-                sh 'ls -a'
+                //sh 'ls -a'
+                sh '''
+                    pwd
+                    ls -la
+                    find . -maxdepth 3 -type f | sort
+                '''
             }
         }
 
@@ -131,6 +136,10 @@ pipeline {
                                             -Dsonar.projectKey=cra-pipeline-test-app \
                                             -Dsonar.projectName="CRA Pipeline Test App" \
                                             -Dsonar.sources=non-vulnerable-app/python
+                                            -Dsonar.python.version=3.12 \
+                                            -Dsonar.sourceEncoding=UTF-8 \
+                                            -Dsonar.qualitygate.wait=false
+
                                     '''
                                 }
                             }
@@ -261,7 +270,7 @@ pipeline {
     }
 
     post {
-        failure {
+        unstable {
             withCredentials([
                 string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
                 string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
