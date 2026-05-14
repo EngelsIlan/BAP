@@ -32,54 +32,54 @@ pipeline {
         stage('Parallel Security Checks') {
             parallel {
 
-                // stage('SBOM Flow') {
-                //     stages {
-                //         stage('Generate SBOM') {
-                //             steps {
-                //                 sh '''
-                //                     echo "GENERATING SBOM WITH SYFT"
-                //                     apt-get update -q
-                //                     apt-get install -y jq python3 -q
+                stage('SBOM Flow') {
+                    stages {
+                        stage('Generate SBOM') {
+                            steps {
+                                sh '''
+                                    echo "GENERATING SBOM WITH SYFT"
+                                    apt-get update -q
+                                    apt-get install -y jq python3 -q
 
-                //                     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
-                //                     ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
+                                    curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+                                    ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
 
-                //                     echo "=== SBOM Preview ==="
-                //                     cat sbom.cdx.json | jq '.components | length'
-                //                     cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
-                //                 '''
-                //             }
-                //         }
+                                    echo "=== SBOM Preview ==="
+                                    cat sbom.cdx.json | jq '.components | length'
+                                    cat sbom.cdx.json | jq '.components[0:3] | .[] | {name, version}'
+                                '''
+                            }
+                        }
 
-                //         stage('Validate & Archive SBOM') {
-                //             steps {
-                //                 sh '''
-                //                     echo "VALIDATING SBOM"
-                //                     cat sbom.cdx.json | jq empty
+                        stage('Validate & Archive SBOM') {
+                            steps {
+                                sh '''
+                                    echo "VALIDATING SBOM"
+                                    cat sbom.cdx.json | jq empty
 
-                //                     COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
-                //                     echo "Generated SBOM with $COMPONENT_COUNT components"
+                                    COMPONENT_COUNT=$(cat sbom.cdx.json | jq '.components | length')
+                                    echo "Generated SBOM with $COMPONENT_COUNT components"
 
-                //                     if [ "$COMPONENT_COUNT" -eq 0 ]; then
-                //                         echo "ERROR: No components found in SBOM!"
-                //                         exit 1
-                //                     fi
-                //                 '''
-                //                 archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
-                //             }
-                //         }
+                                    if [ "$COMPONENT_COUNT" -eq 0 ]; then
+                                        echo "ERROR: No components found in SBOM!"
+                                        exit 1
+                                    fi
+                                '''
+                                archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
+                            }
+                        }
 
-                //         stage('SBOM Validatie (BSI TR-03183-2)') {
-                //             steps {
-                //                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                //                     sh '''
-                //                         python3 validate_sbom.py sbom.cdx.json
-                //                     '''
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                        stage('SBOM Validatie (BSI TR-03183-2)') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        python3 validate_sbom.py sbom.cdx.json
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // stage('Dependency Check Flow') {
                 //     stages {
@@ -157,55 +157,55 @@ pipeline {
                     }
                 }
 
-                // stage('Grype Container Scan') {
-                //     stages {
-                //         stage('Install Grype') {
-                //             steps {
-                //                 sh '''
-                //                     curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
-                //                 '''
-                //             }
-                //         }
+                stage('Grype Container Scan') {
+                    stages {
+                        stage('Install Grype') {
+                            steps {
+                                sh '''
+                                    curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
+                                '''
+                            }
+                        }
 
-                //         stage('Scan Container Image') {
-                //             steps {
-                //                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                //                     sh '''
-                //                         echo "SCANNING CONTAINER IMAGE WITH GRYPE"
-                //                         ./grype ${IMAGE_NAME} --fail-on high -o table
-                //                     '''
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                        stage('Scan Container Image') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        echo "SCANNING CONTAINER IMAGE WITH GRYPE"
+                                        ./grype ${IMAGE_NAME} --fail-on high -o table
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                }
 
-                // stage('TruffleHog Secrets Scan') {
-                //     stages {
-                //         stage('Install TruffleHog') {
-                //             steps {
-                //                 sh '''
-                //                     curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
-                //                 '''
-                //             }
-                //         }
+                stage('TruffleHog Secrets Scan') {
+                    stages {
+                        stage('Install TruffleHog') {
+                            steps {
+                                sh '''
+                                    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b .
+                                '''
+                            }
+                        }
 
-                //         stage('Scan for Secrets') {
-                //             steps {
-                //                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                //                     sh '''
-                //                         ./trufflehog git file://. --only-verified --fail --json 2>/dev/null > trufflehog-report.json || true
+                        stage('Scan for Secrets') {
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        ./trufflehog git file://. --only-verified --fail --json 2>/dev/null > trufflehog-report.json || true
 
-                //                         if [ ! -s trufflehog-report.json ]; then
-                //                             echo '{"result": "No verified secrets found"}' > trufflehog-report.json
-                //                         fi
-                //                     '''
-                //                 }
-                //                 archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
-                //             }
-                //         }
-                //     }
-                // }
+                                        if [ ! -s trufflehog-report.json ]; then
+                                            echo '{"result": "No verified secrets found"}' > trufflehog-report.json
+                                        fi
+                                    '''
+                                }
+                                archiveArtifacts artifacts: 'trufflehog-report.json', fingerprint: true
+                            }
+                        }
+                    }
+                }
             }
         }
 
