@@ -272,6 +272,15 @@ pipeline {
     }
 
     post {
+        success {
+            echo 'BUILD SUCCESS'
+        }
+        unstable {
+            echo 'BUILD UNSTABLE'
+        }
+        aborted {
+            echo 'BUILD ABORTED'
+        }
         failure {
             withCredentials([
                 string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
