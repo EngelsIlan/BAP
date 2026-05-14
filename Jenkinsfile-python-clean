@@ -22,7 +22,7 @@ pipeline {
             steps {
                 sh '''
                     echo "BUILDING PYTHON DOCKER IMAGE"
-                    docker build -f Docker/Dockerfile -t "${IMAGE_NAME}" BAP
+                    docker build -f Docker/Dockerfile.python.CLEAN -t "${IMAGE_NAME}" .
                     docker images | grep cra-python-test
                 '''
             }
