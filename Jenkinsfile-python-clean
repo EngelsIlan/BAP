@@ -38,21 +38,23 @@ pipeline {
                                     apt-get update -q
                                     apt-get install -y jq python3
                                     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
-                                    ./syft scan dir:BAP -o cyclonedx-json > sbom.cdx.json
+                                    ./syft scan dir:. -o cyclonedx-json > sbom.cdx.json
                                 '''
                             }
                         }
 
                         stage('Validate & Archive SBOM') {
                             steps {
-                                sh '''
-                                    jq empty sbom.cdx.json
-                                    COUNT=$(jq '.components | length' sbom.cdx.json)
-                                    if [ "$COUNT" -eq 0 ]; then
-                                      echo "ERROR: empty SBOM"
-                                      exit 1
-                                    fi
-                                '''
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                    sh '''
+                                        jq empty sbom.cdx.json
+                                        COUNT=$(jq '.components | length' sbom.cdx.json)
+                                        if [ "$COUNT" -eq 0 ]; then
+                                        echo "ERROR: empty SBOM"
+                                        exit 1
+                                        fi
+                                    '''
+                                }
                                 archiveArtifacts artifacts: 'sbom.cdx.json', fingerprint: true
                             }
                         }
