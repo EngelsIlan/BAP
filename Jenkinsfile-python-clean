@@ -281,32 +281,26 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'BUILD SUCCESS'
-        }
-        unstable {
-            withCredentials([
-                string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
-                string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
-            ]) {
-                sh '''
-                    echo "BUILD UNSTABLE - SENDING EMAIL NOTIFICATION"
-                    python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "$JOB_NAME" "$BUILD_NUMBER" "$BUILD_URL"
-                '''
-            }
-        }
-        aborted {
-            echo 'BUILD ABORTED'
-        }
-        failure {
-            echo 'BUILD FAILED'
-        }
+        // Op deze manier aangezien er de workspace gecleaned wordt voordat de e-mail gestuurd is
         always {
-            echo "currentBuild.result = ${currentBuild.currentResult}"
-            sh '''
-                docker rm -f cra-pipeline-test-app || true
-                docker rmi ${IMAGE_NAME} || true
-            '''
+            script {
+                echo "Build result: ${currentBuild.currentResult}"
+
+                if (currentBuild.currentResult == 'UNSTABLE') {
+                    withCredentials([
+                        string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
+                        string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
+                    ]) {
+                        sh '''
+                            python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "$JOB_NAME" "$BUILD_NUMBER" "$BUILD_URL"
+                        '''
+                    }
+                }
+            }
+
+            sh 'docker rm -f cra-pipeline-test-app || true'
+            sh 'docker rmi ${IMAGE_NAME} || true'
+            cleanWs()
         }
     }
 }

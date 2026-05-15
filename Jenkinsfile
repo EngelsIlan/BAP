@@ -294,22 +294,23 @@ pipeline {
     }
 
     post {
-        failure {
-            withCredentials([
-                string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
-                string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
-            ]) {
-                sh '''
-                    pwd
-                    ls
-                    git clone https://github.com/EngelsIlan/BAP.git
-                    ls BAP
-                    cd BAP
-                    python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "${JOB_NAME}" "${BUILD_NUMBER}" "${BUILD_URL}"
-                '''
-            }
-        }
+        // Op deze manier aangezien er de workspace gecleaned wordt voordat de e-mail gestuurd is
         always {
+            script {
+                echo "Build result: ${currentBuild.currentResult}"
+
+                if (currentBuild.currentResult == 'UNSTABLE') {
+                    withCredentials([
+                        string(credentialsId: 'gmail-username', variable: 'GMAIL_USER'),
+                        string(credentialsId: 'gmail-app-password', variable: 'GMAIL_PASSWORD')
+                    ]) {
+                        sh '''
+                            python3 send_mail.py "$GMAIL_USER" "$GMAIL_PASSWORD" "$JOB_NAME" "$BUILD_NUMBER" "$BUILD_URL"
+                        '''
+                    }
+                }
+            }
+
             sh 'docker rm -f spring-petclinic || true'
             sh 'docker rmi ${IMAGE_NAME} || true'
             cleanWs()
