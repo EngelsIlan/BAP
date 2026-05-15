@@ -18,7 +18,7 @@ pipeline {
             steps {
                 sh '''
                     echo "BUILDING DOCKER IMAGE"
-                    docker build -f Docker/Dockerfile.nonvuln-dotnet -t ${IMAGE_NAME} .
+                    docker build -f Docker/Dockerfile.dotnet.CLEAN -t ${IMAGE_NAME} .
                     docker images | grep cra-pipeline-test-dotnet
                 '''
             }
@@ -231,7 +231,7 @@ pipeline {
                         mkdir -p zap-report
                         chmod 777 zap-report
 
-                        HOST_PATH="$(docker inspect $(hostname) --format='{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Source }}{{ end }}{{ end }}')/workspace/NonVuln-Dotnet-pipeline/zap-report"
+                        HOST_PATH="$(docker inspect $(hostname) --format='{{ range .Mounts }}{{ if eq .Destination "/var/jenkins_home" }}{{ .Source }}{{ end }}{{ end }}')/workspace/non-vuln-dotnet-app/zap-report"
 
                         docker run --rm \
                             --add-host=host.docker.internal:host-gateway \
